@@ -1,54 +1,81 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    [SerializeField] private Joystick PlayerJoystick; // Control joystick
-    [SerializeField] private float PlayerSpeed; // Speed modifer
-    [SerializeField] private GameObject MovePoint; // Tap position 3D
-    private Rigidbody rb; // Player Rigit Body
+    [SerializeField] private Joystick PlayerJoystick;
+    [SerializeField] private float PlayerSpeed;
+    [SerializeField] private Transform _tapMoveTransform;
 
-    void Start()
-    {
-        rb = GetComponent<Rigidbody>();
+    private Camera _camera;
+    private Rigidbody _myRigitBody;
+
+    private void Awake(){
+        _camera = Camera.main;
     }
-
-    void FixedUpdate(){
+    private void Start()
+    {
+        _tapMoveTransform.position = transform.position;
+        _myRigitBody = GetComponent<Rigidbody>();
+    }
+    private void FixedUpdate(){
         // if joystick movement
-        if (PlayerJoystick.Horizontal != 0 || PlayerJoystick.Vertical != 0){
+        if ((PlayerJoystick.Horizontal != 0) || (PlayerJoystick.Vertical != 0))
             JoystickMove();
-        }
         // if taps movement
         else{
+            SetMovePos();
             TapMove();
         }
     }
 
     private void JoystickMove(){
-        MovePoint.transform.position = transform.position; // Deactivate last tap movement
-        rb.velocity = new Vector3(PlayerJoystick.Direction.x * PlayerSpeed, rb.velocity.y, PlayerJoystick.Direction.y * PlayerSpeed);
+        _tapMoveTransform.position = transform.position; // Deactivate last tap movement
+        
+        _myRigitBody.velocity = new Vector3(
+            PlayerJoystick.Direction.x * PlayerSpeed,
+            _myRigitBody.velocity.y,
+            PlayerJoystick.Direction.y * PlayerSpeed
+        );
     }
     private void TapMove(){
-        var mpos = MovePoint.transform.position; // move point pos
-        var ppos = transform.position; // player pos
+        var playerPos = transform.position;
+        if (CheckApproximatePos(playerPos)) return;
+
         float xMove = 0; // Vector component X
         float zMove = 0; // Vector component Z
 
         // NOT A BUG, BUT A FEATURE
-        if (mpos.x > ppos.x){
+        if (_tapMoveTransform.position.x > playerPos.x){
             xMove = PlayerSpeed;
         }
-        if (mpos.x < ppos.x){
+        if (_tapMoveTransform.position.x < playerPos.x){
             xMove = -PlayerSpeed;
         }
-        if (mpos.z > ppos.z){
+        if (_tapMoveTransform.position.z > playerPos.z){
             zMove = PlayerSpeed;
         }
-        if (mpos.z < ppos.z){
+        if (_tapMoveTransform.position.z < playerPos.z){
             zMove = -PlayerSpeed;
         }
 
-        rb.velocity = new Vector3(xMove, rb.velocity.y, zMove);
+        _myRigitBody.velocity = new Vector3(xMove, _myRigitBody.velocity.y, zMove);
+    }
+    private bool CheckApproximatePos(Vector3 playerPos){
+        var playerX = (int) playerPos.x;
+        var playerZ = (int) playerPos.z;
+        var targetX = (int) _tapMoveTransform.position.x;
+        var targetZ = (int) _tapMoveTransform.position.z;
+
+        return ((playerX == targetX) && (playerZ == targetZ));
+    }
+    private void SetMovePos(){
+        if (Input.touches.Length == 0) return;
+
+        var touch = Input.GetTouch(Input.touches.Length - 1);
+
+        RaycastHit hit;
+        if (Physics.Raycast (_camera.ScreenPointToRay(Input.mousePosition), out hit)) {
+            _tapMoveTransform.position = hit.point;
+        }
     }
 }
